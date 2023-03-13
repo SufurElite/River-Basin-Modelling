@@ -10,8 +10,9 @@ import networkx as nx
 import math
 
 class River:
-    def __init__(self,fractalDim:float, latLength: int = 100, upstream:bool = False):
-        self.upstream = upstream      
+    def __init__(self,fractalDim:float, latLength: int = 100, upstream:bool = False, outlet:tuple[int, int] = (0,0)):
+        self.upstream = upstream
+        self.outlet = outlet      
         # equations for self-similar fractals from Models of Fractal
         # river basins
         self.fractalDim = fractalDim
@@ -23,8 +24,14 @@ class River:
         self.latticeMatrix = np.zeros((self.latLength, self.latLength))        
         self.areaPDF = self.areaProbDensityFunc(self, a=0, b=1)
         self.areaMatrix = np.zeros((self.latLength, self.latLength))
-        self.populateLatMatix()
+        # initially represent the graph as a dictionary of nodes
+        # to edges
+        self.dict_graph = {}
+        self.G = nx.DiGraph()
 
+        self.populateLatMatix()
+        self.createGraph()
+        
     def getProbability(self, area):
         return self.areaPDF.pdf(area)
 
@@ -55,13 +62,68 @@ class River:
             self.latLength = riverModel.latLength
         def _pdf(self,x):
             return x
+    
+    def createGraph(self, includeName:bool = True, save:bool = True):
+        """
+            Once populate matrix has been run, we 
+            create an NX graph to visualise
+        """
+        plt.rcParams["figure.figsize"] = (10,10)
+        sumWeights = 0
+        totalWeights = 0
+        uniqueWeights = set()
+        for node in self.dict_graph:
+            totalWeights+=len(self.dict_graph[node])
+            for edge in self.dict_graph[node]:
+                sumWeights+=edge[2]
+                uniqueWeights.add(edge[2])
+        
+        nodes = list(self.dict_graph.keys())
+        node_to_name = {}
+        for i in range(len(nodes)):
+            node_to_name[nodes[i]] = chr(65+i)
+        
+        for node in self.dict_graph:
+            nodeName = node_to_name[node] + " " + str(self.areaMatrix[node[0]][node[1]])
+            
+            if self.outlet == (node[0], node[1]):
+                nodeName = "[Outlet] " + nodeName
+            print(nodeName)
+            for edge in self.dict_graph[node]:
+                otherNode = node_to_name[(edge[0],edge[1])] + " " + str(self.areaMatrix[edge[0]][edge[1]])
+                self.G.add_edge(nodeName,otherNode,weight=edge[2])
+        
 
-    def populateLatMatix(self, outlet:tuple[int, int] = (0,0)):
+        pos = nx.spring_layout(self.G)
+        # nodes
+        nx.draw_networkx_nodes(self.G,pos,node_size=800)
+        nx.draw_networkx_labels(self.G,pos,font_size=18)
+        # edges
+        for weight in uniqueWeights:
+            weighted_edges = [(node1,node2) for (node1,node2,edge_attr) in self.G.edges(data=True) if edge_attr['weight']==weight]
+            nx.draw_networkx_edges(self.G,pos,edgelist=weighted_edges,width=weight*4*totalWeights/sumWeights, arrows=True, edge_color="cyan")
+        
+        plt.axis('off')
+        plt.title(f"Saved River Fractal Dimension: {(self.fractalDim)}")
+        if save:
+            plt.savefig("river_weighted_graph.png") # save as png
+        plt.show() # display
+
+    def populateLatMatix(self):
         def dfs(coords, visited, edges,last_s):
             i, j = coords[0], coords[1]
-            visited[i][j]=   True
+            if not visited[i][j]:
+                visited[i][j] = True
+                self.dict_graph[(i,j)] = []
+            
+            self.latticeMatrix[i][j] = 1
+
             s = last_s+1
+            # not sure if it should be the total merged 
+            # or just the one time and then should the river
+            # add the values on to the final area
             self.areaMatrix[i][j] = s
+            
             p = self.getProbability(s)
             sample = random.uniform(0,1)
             
@@ -70,51 +132,73 @@ class River:
             # check if we can go in the four directions and act accordingly
             # i will be columns and j will be rows
             if (j+1)<self.latLength and not ((((i,j),(i,j+1)) in edges) or (((i,j+1),(i,j)) in edges)):
-                edges.add(((i,j+1),(i,j)))
                 edges.add(((i,j),(i,j+1)))
+                edges.add(((i,j+1),(i,j)))
+                self.dict_graph[(i,j)].append((i,j+1,p))
+
                 dfs((i,j+1), visited, edges,s)
             if (i+1)<self.latLength and not ((((i,j),(i+1,j)) in edges) or (((i+1,j),(i,j)) in edges)):
                 edges.add(((i+1,j),(i,j)))
                 edges.add(((i,j),(i+1,j)))
+                self.dict_graph[(i,j)].append((i+1,j,p))
+
                 dfs((i+1,j), visited, edges,s)
             if (j-1)>self.latLength and not ((((i,j),(i,j-1)) in edges) or (((i,j-1),(i,j)) in edges)):
                 edges.add(((i,j),(i,j-1)))
                 edges.add(((i,j-1),(i,j)))
+                self.dict_graph[(i,j)].append((i,j-1,p))
+                
                 dfs((i,j-1), visited, edges,s)
             if (i-1)>self.latLength and not ((((i,j),(i-1,j)) in edges) or (((i-1,j),(i,j)) in edges)):
                 edges.add(((i-1,j),(i,j)))
                 edges.add(((i,j),(i-1,j)))
+                self.dict_graph[(i,j)].append((i-1,j,p))
                 dfs((i-1,j), visited, edges,s)
             return None
         # the edges that are already existing 
         edges = set()
         visited = [[False for i in range(self.latLength)] for j in range(self.latLength)]
-        visited[outlet[0]][outlet[1]] = True
-        
-        self.areaMatrix[outlet[0]][outlet[1]] = 1
-        dfs((outlet[0],outlet[1]),visited,edges,0)
-        #print(np.matrix(visited))
+        visited[self.outlet[0]][self.outlet[1]] = True
+        self.latticeMatrix[self.outlet[0]][self.outlet[1]] = 1
+        self.areaMatrix[self.outlet[0]][self.outlet[1]] = 0
+        self.dict_graph[(self.outlet[0],self.outlet[1])] = []
+
+        dfs((self.outlet[0],self.outlet[1]),visited,edges,0)
+        for k in self.dict_graph:
+            print(k, self.dict_graph[k])
+
         print(edges)
+
     def calculateFlow(self):
         pass
     
     def plotPDF(self):
-        # evaluate PDF
+        """
+            Plot the PDF as a function of area
+        """
+        # area of 0 to 50 by increments of 2 (100/50=2)
         x = np.linspace(0,50,100)
         pdf = [self.areaPDF.pdf(tmp_x) for tmp_x in x]
-        #pdf = self.areaPDF.pdf(x)
-        # plot
+        
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, pdf, '--r')
         plt.title("Probability Density Function")
+        plt.xlabel("Area")
+        plt.ylabel("Probability (%)")
         plt.show()
 
+    def pprint(self):
+        print("="*10)
+        print("Area Matrix: ")
+        print(self.areaMatrix)
+        print("="*10)
+        print("Lattice Matrix: ")
+        print(self.latticeMatrix)
+    
     def plot(self):
         pass
 
 if __name__=="__main__":
    
    riv = River(1.47,latLength=10)
-   riv.populateLatMatix()
-
-
+   riv.pprint()
