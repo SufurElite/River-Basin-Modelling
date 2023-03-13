@@ -27,7 +27,9 @@ class River:
         # initially represent the graph as a dictionary of nodes
         # to edges
         self.dict_graph = {}
-        self.G = nx.DiGraph()
+        self.G = nx.Graph()
+        # correspondence of node to location
+        self.nodeLocs = {}
 
         self.populateLatMatix()
         self.createGraph()
@@ -46,9 +48,9 @@ class River:
         def scalingFunction(self,x):
             """ Some scaling function """
             # return math.cosh(x)/np.exp(x)
-            # return np.sin(x)/x
-            return np.exp(-x)**2
+            # return np.exp(-x)**2
             # return 1-0.8*((np.exp(-0.005*x)-1)/(np.exp(-5.475)-1))
+            return np.sin(x)/x
         
         def _pdf(self,x):
             return x**(-self.tau)*self.scalingFunction((x/(self.latLength**self.phi)))
@@ -79,10 +81,12 @@ class River:
             if self.outlet == (node[0], node[1]):
                 nodeName = "[Outlet] " + nodeName
             
+            self.nodeLocs[nodeName] = (node[0],self.latLength-node[1])
+
             for edge in self.dict_graph[node]:
                 otherNode = node_to_name[(edge[0],edge[1])] + " " + str(self.areaMatrix[edge[0]][edge[1]])
                 self.G.add_edge(nodeName,otherNode,weight=edge[2])
-
+        
     def populateLatMatix(self):
         def dfs(coords, visited, edges,last_s):
             i, j = coords[0], coords[1]
@@ -103,8 +107,7 @@ class River:
             
             if(sample>p):
                 return None
-            # check if we can go in the four directions and act accordingly
-            # i will be columns and j will be rows
+            # check if we can go in the three directions and act accordingly
             if (j+1)<self.latLength and not ((((i,j),(i,j+1)) in edges) or (((i,j+1),(i,j)) in edges)):
                 edges.add(((i,j),(i,j+1)))
                 edges.add(((i,j+1),(i,j)))
@@ -123,11 +126,11 @@ class River:
                 self.dict_graph[(i,j)].append((i,j-1,p))
                 
                 dfs((i,j-1), visited, edges,s)
-            if (i-1)>0 and not ((((i,j),(i-1,j)) in edges) or (((i-1,j),(i,j)) in edges)):
+            """if (i-1)>0 and not ((((i,j),(i-1,j)) in edges) or (((i-1,j),(i,j)) in edges)):
                 edges.add(((i-1,j),(i,j)))
                 edges.add(((i,j),(i-1,j)))
                 self.dict_graph[(i,j)].append((i-1,j,p))
-                dfs((i-1,j), visited, edges,s)
+                dfs((i-1,j), visited, edges,s)"""
             return None
         # the edges that are already existing 
         edges = set()
@@ -170,13 +173,14 @@ class River:
         sumWeights = 0
         totalWeights = 0
         uniqueWeights = set()
+        
         for node in self.dict_graph:
-            totalWeights+=len(self.dict_graph[node])
+            totalWeights+=len(self.dict_graph[node])    
             for edge in self.dict_graph[node]:
                 sumWeights+=edge[2]
                 uniqueWeights.add(edge[2])
 
-        pos = nx.spring_layout(self.G)
+        pos = nx.spring_layout(self.G,pos=self.nodeLocs,fixed=self.nodeLocs.keys())
         # nodes
         nx.draw_networkx_nodes(self.G,pos,node_size=800)
         nx.draw_networkx_labels(self.G,pos,font_size=18)
@@ -193,6 +197,8 @@ class River:
 
 if __name__=="__main__":
    
+  # riv = River(1.47,latLength=10, outlet=(2,2))
    riv = River(1.47,latLength=10)
    riv.pprint()
    riv.plotGraph()
+   

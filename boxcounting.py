@@ -16,11 +16,8 @@ def rgb2gray(rgb):
     (thresh, BnW_image) = cv2.threshold(gray_image, 125, 255, cv2.THRESH_BINARY)
     return BnW_image
 
-def imageToFracDim(fpath:str):
+def imageToFracDim(fpath:str, saveImg:bool = False):
     image=rgb2gray(pl.imread(fpath))
-    print(image.shape)
-    plt.imshow(image)
-    plt.savefig("grayed.jpg")
     # finding all the non-zero pixels
     pixels=[]
     for i in range(image.shape[0]):
@@ -50,13 +47,14 @@ def imageToFracDim(fpath:str):
     
     # linear fit, polynomial of degree 1
     coeffs=np.polyfit(np.log(scales), np.log(Ns), 1)
-    
-    pl.plot(np.log(scales),np.log(Ns), 'o', mfc='none')
-    pl.plot(np.log(scales), np.polyval(coeffs,np.log(scales)))
-    pl.xlabel('log $\epsilon$')
-    pl.ylabel('log N')
-    pl.savefig('fractal_dimension.pdf')
+    if saveImg:
+        pl.plot(np.log(scales),np.log(Ns), 'o', mfc='none')
+        pl.plot(np.log(scales), np.polyval(coeffs,np.log(scales)))
+        pl.xlabel('log $\epsilon$')
+        pl.ylabel('log N')
+        pl.savefig('fractal_dimension.pdf')
+        np.savetxt("scaling.txt", list(zip(scales,Ns)))
     
     print ("The Hausdorff dimension is", -coeffs[0]) #the fractal dimension is the OPPOSITE of the fitting coefficient
-    np.savetxt("scaling.txt", list(zip(scales,Ns)))
+        
     return -coeffs[0]
