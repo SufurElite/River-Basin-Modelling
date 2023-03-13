@@ -63,20 +63,11 @@ class River:
         def _pdf(self,x):
             return x
     
-    def createGraph(self, includeName:bool = True, save:bool = True):
+    def createGraph(self):
         """
             Once populate matrix has been run, we 
             create an NX graph to visualise
         """
-        plt.rcParams["figure.figsize"] = (10,10)
-        sumWeights = 0
-        totalWeights = 0
-        uniqueWeights = set()
-        for node in self.dict_graph:
-            totalWeights+=len(self.dict_graph[node])
-            for edge in self.dict_graph[node]:
-                sumWeights+=edge[2]
-                uniqueWeights.add(edge[2])
         
         nodes = list(self.dict_graph.keys())
         node_to_name = {}
@@ -85,29 +76,12 @@ class River:
         
         for node in self.dict_graph:
             nodeName = node_to_name[node] + " " + str(self.areaMatrix[node[0]][node[1]])
-            
             if self.outlet == (node[0], node[1]):
                 nodeName = "[Outlet] " + nodeName
-            print(nodeName)
+            
             for edge in self.dict_graph[node]:
                 otherNode = node_to_name[(edge[0],edge[1])] + " " + str(self.areaMatrix[edge[0]][edge[1]])
                 self.G.add_edge(nodeName,otherNode,weight=edge[2])
-        
-
-        pos = nx.spring_layout(self.G)
-        # nodes
-        nx.draw_networkx_nodes(self.G,pos,node_size=800)
-        nx.draw_networkx_labels(self.G,pos,font_size=18)
-        # edges
-        for weight in uniqueWeights:
-            weighted_edges = [(node1,node2) for (node1,node2,edge_attr) in self.G.edges(data=True) if edge_attr['weight']==weight]
-            nx.draw_networkx_edges(self.G,pos,edgelist=weighted_edges,width=weight*4*totalWeights/sumWeights, arrows=True, edge_color="cyan")
-        
-        plt.axis('off')
-        plt.title(f"Saved River Fractal Dimension: {(self.fractalDim)}")
-        if save:
-            plt.savefig("river_weighted_graph.png") # save as png
-        plt.show() # display
 
     def populateLatMatix(self):
         def dfs(coords, visited, edges,last_s):
@@ -143,13 +117,13 @@ class River:
                 self.dict_graph[(i,j)].append((i+1,j,p))
 
                 dfs((i+1,j), visited, edges,s)
-            if (j-1)>self.latLength and not ((((i,j),(i,j-1)) in edges) or (((i,j-1),(i,j)) in edges)):
+            if (j-1)>0 and not ((((i,j),(i,j-1)) in edges) or (((i,j-1),(i,j)) in edges)):
                 edges.add(((i,j),(i,j-1)))
                 edges.add(((i,j-1),(i,j)))
                 self.dict_graph[(i,j)].append((i,j-1,p))
                 
                 dfs((i,j-1), visited, edges,s)
-            if (i-1)>self.latLength and not ((((i,j),(i-1,j)) in edges) or (((i-1,j),(i,j)) in edges)):
+            if (i-1)>0 and not ((((i,j),(i-1,j)) in edges) or (((i-1,j),(i,j)) in edges)):
                 edges.add(((i-1,j),(i,j)))
                 edges.add(((i,j),(i-1,j)))
                 self.dict_graph[(i,j)].append((i-1,j,p))
@@ -164,10 +138,6 @@ class River:
         self.dict_graph[(self.outlet[0],self.outlet[1])] = []
 
         dfs((self.outlet[0],self.outlet[1]),visited,edges,0)
-        for k in self.dict_graph:
-            print(k, self.dict_graph[k])
-
-        print(edges)
 
     def calculateFlow(self):
         pass
@@ -188,17 +158,41 @@ class River:
         plt.show()
 
     def pprint(self):
-        print("="*10)
+        print("="*20)
         print("Area Matrix: ")
         print(self.areaMatrix)
-        print("="*10)
+        print("="*20)
         print("Lattice Matrix: ")
         print(self.latticeMatrix)
     
-    def plot(self):
-        pass
+    def plotGraph(self, save:bool = False):
+        plt.rcParams["figure.figsize"] = (10,10)
+        sumWeights = 0
+        totalWeights = 0
+        uniqueWeights = set()
+        for node in self.dict_graph:
+            totalWeights+=len(self.dict_graph[node])
+            for edge in self.dict_graph[node]:
+                sumWeights+=edge[2]
+                uniqueWeights.add(edge[2])
+
+        pos = nx.spring_layout(self.G)
+        # nodes
+        nx.draw_networkx_nodes(self.G,pos,node_size=800)
+        nx.draw_networkx_labels(self.G,pos,font_size=18)
+        # edges
+        for weight in uniqueWeights:
+            weighted_edges = [(node1,node2) for (node1,node2,edge_attr) in self.G.edges(data=True) if edge_attr['weight']==weight]
+            nx.draw_networkx_edges(self.G,pos,edgelist=weighted_edges,width=weight*4*totalWeights/sumWeights, arrows=True, edge_color="cyan")
+        
+        plt.axis('off')
+        plt.title(f"Saved River Fractal Dimension: {(self.fractalDim)}")
+        if save:
+            plt.savefig("plots/river_weighted_graph.png") # save as png
+        plt.show() # display
 
 if __name__=="__main__":
    
    riv = River(1.47,latLength=10)
    riv.pprint()
+   riv.plotGraph()
