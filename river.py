@@ -44,13 +44,15 @@ class River:
             self.tau = riverModel.tau
             self.phi = riverModel.phi
             self.latLength = riverModel.latLength
-            
+        
         def scalingFunction(self,x):
             """ Some scaling function """
             # return math.cosh(x)/np.exp(x)
-            # return np.exp(-x)**2
+            #return (math.sqrt(2)/np.pi**(-1/4))*np.exp((-(x)**2)/2)*(x)
+            return np.exp(-(x**2))
             # return 1-0.8*((np.exp(-0.005*x)-1)/(np.exp(-5.475)-1))
-            return np.sin(x)/x
+            # return np.sin(x)/x
+            # return 0.379082 - 1.49918*x + 20.2469*x**2 - 87.6539*x**3 + 175.341*x**4 - 146.485*x**5 + 38.3844*x**6
         
         def _pdf(self,x):
             return x**(-self.tau)*self.scalingFunction((x/(self.latLength**self.phi)))
@@ -183,7 +185,7 @@ class River:
         pos = nx.spring_layout(self.G,pos=self.nodeLocs,fixed=self.nodeLocs.keys())
         # nodes
         nx.draw_networkx_nodes(self.G,pos,node_size=800)
-        nx.draw_networkx_labels(self.G,pos,font_size=18)
+        nx.draw_networkx_labels(self.G,pos,font_size=14)
         # edges
         for weight in uniqueWeights:
             weighted_edges = [(node1,node2) for (node1,node2,edge_attr) in self.G.edges(data=True) if edge_attr['weight']==weight]
@@ -198,7 +200,8 @@ class River:
 if __name__=="__main__":
    
   # riv = River(1.47,latLength=10, outlet=(2,2))
-   riv = River(1.47,latLength=10)
-   riv.pprint()
-   riv.plotGraph()
+   riv = River(1.47,latLength=100)
+   #riv.pprint()
+   #riv.plotGraph()
+   riv.plotPDF()
    
