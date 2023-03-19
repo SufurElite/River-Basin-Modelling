@@ -5,19 +5,21 @@ https://francescoturci.net/2016/03/31/box-counting-in-numpy/
 import numpy as np
 import pylab as pl
 from matplotlib import pyplot as plt
-import cv2
 
 def rgb2gray(rgb):
-    #r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-    #gray = 0.2989 * r + 0.5870 * g + 0.1140 * b 
+    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b 
     #Convert an image from BGR to grayscale mode 
-    gray_image = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+    #gray_image = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
     #Convert a grayscale image to black and white using binary thresholding 
-    (thresh, BnW_image) = cv2.threshold(gray_image, 125, 255, cv2.THRESH_BINARY)
-    return BnW_image
+    #(thresh, BnW_image) = cv2.threshold(gray_image, 125, 255, cv2.THRESH_BINARY)
+    return gray
 
 def imageToFracDim(fpath:str, saveImg:bool = False):
     image=rgb2gray(pl.imread(fpath))
+    plt.imshow(image)
+    plt.axis(False)
+    plt.savefig("satellite-images/egypt2b_s_colorchanged.png",bbox_inches='tight',pad_inches = 0)
     # finding all the non-zero pixels
     pixels=[]
     for i in range(image.shape[0]):
@@ -25,7 +27,7 @@ def imageToFracDim(fpath:str, saveImg:bool = False):
             if image[i,j]>0:
                 pixels.append((i,j))
 
-
+    
     Lx=image.shape[1]
     Ly=image.shape[0]
     print (Lx, Ly)
@@ -48,6 +50,9 @@ def imageToFracDim(fpath:str, saveImg:bool = False):
     # linear fit, polynomial of degree 1
     coeffs=np.polyfit(np.log(scales), np.log(Ns), 1)
     if saveImg:
+        plt.imshow(image)
+        plt.show()
+        plt.clf()
         pl.plot(np.log(scales),np.log(Ns), 'o', mfc='none')
         pl.plot(np.log(scales), np.polyval(coeffs,np.log(scales)))
         pl.xlabel('log $\epsilon$')
@@ -58,3 +63,5 @@ def imageToFracDim(fpath:str, saveImg:bool = False):
     print ("The Hausdorff dimension is", -coeffs[0]) #the fractal dimension is the OPPOSITE of the fitting coefficient
         
     return -coeffs[0]
+
+imageToFracDim(fpath="satellite-images/egypt2b_s.jpg")
